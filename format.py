@@ -77,6 +77,7 @@ def generate_diceware():
         js.write(f'"{word}",\n')
 
     output.close()
+    js.write('];')
     js.close()
     shutil.rmtree('tmp')
 
