@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 import getopt
 import requests
 import time
@@ -182,6 +183,9 @@ def init():
     Create output folder
     """
     print("Creating output folder...")
+    if os.path.isdir('output'):
+        shutil.rmtree('output')
+
     os.mkdir('output')
 
 
