@@ -1,2 +1,2 @@
 # greek-dictionary
-A utility to build files with modern Greek words
+A utility to build a complete Greek dictionary
