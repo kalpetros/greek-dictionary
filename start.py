@@ -1,9 +1,10 @@
-import os
-import sys
-import shutil
 import getopt
+import os
 import requests
+import shutil
+import sys
 import time
+
 from bs4 import BeautifulSoup
 
 
@@ -137,7 +138,7 @@ def compile(letters):
     """
     Compile individual word files into one
     """
-    output = open('output/compiled.txt', 'w')
+    output = open('output/el.txt', 'w')
 
     for letter in letters:
         with open(f'output/{letter["letter"]}.txt', 'r') as file:
