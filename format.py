@@ -21,7 +21,7 @@ mappings = {
     'λ': 'l',
     'μ': 'm',
     'ν': 'n',
-    'ξ': 'x',
+    'ξ': 'ks',
     'ο': 'o',
     'ό': 'o',
     'π': 'p',
@@ -71,10 +71,51 @@ def generate_diceware():
 
     js.write('const el = [')
 
+    inc_p2 = inc_p3 = inc_p4 = inc_p5 = 1
+    itr_p2 = itr_p3 = itr_p4 = itr_p5 = 0
     for index, word in enumerate(words):
-        test = f'{1}{1}{2}{2}{6}'
+        if itr_p2 % 6 == 0:
+            inc_p2 = inc_p2 + 6 + 1
+
+        if itr_p3 % 6**2 == 0:
+            inc_p3 = inc_p3 + 6**2 + 1
+
+        if itr_p4 % 6**3 == 0:
+            inc_p4 = inc_p4 + 6**3 + 1
+
+        if itr_p5 % 6**4 == 0:
+            inc_p5 = inc_p5 + 6**4 + 1
+
+        if (itr_p2 % 6**2 == 0):
+            itr_p2 = 0
+            inc_p2 = 1
+
+        if (itr_p3 % 6**3 == 0):
+            itr_p3 = 0
+            inc_p3 = 1
+
+        if (itr_p4 % 6**4 == 0):
+            itr_p4 = 0
+            inc_p4 = 1
+
+        if (itr_p5 % 6**5 == 0):
+            itr_p5 = 0
+            inc_p5 = 1
+
+        p1 = index % 6 + 1  # resets every 6
+        p2 = (itr_p2 % 6) + inc_p2 - itr_p2  # reset every 6^2 = 36
+        p3 = (itr_p3 % 6**2) + inc_p3 - itr_p3  # resets every 6^3 = 216
+        p4 = (itr_p4 % 6**3) + inc_p4 - itr_p4  # resets every 6^4 = 1296
+        p5 = (itr_p5 % 6**4) + inc_p5 - itr_p5  # resets every 6^5 = 7776
+
+        test = f'{p5}{p4}{p3}{p2}{p1}'
         output.write(f'{test}    {word}\n')
         js.write(f'"{word}",\n')
+
+        itr_p2 = itr_p2 + 1
+        itr_p3 = itr_p3 + 1
+        itr_p4 = itr_p4 + 1
+        itr_p5 = itr_p5 + 1
 
     output.close()
     js.write('];')
@@ -170,4 +211,5 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    # main(sys.argv[1:])
+    generate_diceware()
