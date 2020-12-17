@@ -1,109 +1,29 @@
 import getopt
-import os
 import requests
-import shutil
 import sys
 import time
 
 from bs4 import BeautifulSoup
 
+from utils import clean
+from utils import compile_words
+from utils import export
+from utils import get_data
+from utils import romanize
+
 
 alphabet = [
     {
-        'letter': 'Α',
-        'pages': 31660
-    },
-    {
-        'letter': 'Β',
-        'pages': 5050
-    },
-    {
-        'letter': 'Γ',
-        'pages': 5890
-    },
-    {
-        'letter': 'Δ',
-        'pages': 7130
-    },
-    {
-        'letter': 'Ε',
-        'pages': 12530
-    },
-    {
-        'letter': 'Ζ',
-        'pages': 1500
-    },
-    {
-        'letter': 'Η',
-        'pages': 1310
-    },
-    {
-        'letter': 'Θ',
-        'pages': 2300
-    },
-    {
-        'letter': 'Ι',
-        'pages': 1720
-    },
-    {
-        'letter': 'Κ',
-        'pages': 17700
-    },
-    {
-        'letter': 'Λ',
-        'pages': 4740
-    },
-    {
-        'letter': 'Μ',
-        'pages': 13020
-    },
-    {
-        'letter': 'Ν',
-        'pages': 3790
-    },
-    {
-        'letter': 'Ξ',
-        'pages': 5250
-    },
-    {
-        'letter': 'Ο',
-        'pages': 4970
-    },
-    {
-        'letter': 'Π',
-        'pages': 18560
-    },
-    {
-        'letter': 'Ρ',
-        'pages': 2720
-    },
-    {
-        'letter': 'Σ',
-        'pages': 14340
-    },
-    {
-        'letter': 'Τ',
-        'pages': 7680
-    },
-    {
-        'letter': 'Υ',
-        'pages': 3170
-    },
-    {
-        'letter': 'Φ',
-        'pages': 5640
-    },
-    {
         'letter': 'Χ',
-        'pages': 5370
+        'pages': 20
     },
     {
         'letter': 'Ψ',
-        'pages': 2080
+        'pages': 20
     },
     {
         'letter': 'Ω',
-        'pages': 470
+        'pages': 70
     }
 ]
 
@@ -114,6 +34,7 @@ def get_source(url):
     """
     rs = requests.get(url)
     source = BeautifulSoup(rs.content, 'html.parser')
+
     return source
 
 
@@ -134,98 +55,105 @@ def parse(source):
     return words
 
 
-def compile(letters):
-    """
-    Compile individual word files into one
-    """
-    output = open('output/el.txt', 'w')
-
-    for letter in letters:
-        with open(f'output/{letter["letter"]}.txt', 'r') as file:
-            lines = file.readlines()
-
-            for word in lines:
-                output.write(f'{word.strip()}\n')
-
-    output.close()
-
-
-def scrape(letters):
+def scrape(letter: str, pages: int):
     """
     Scrapes www.greek-language.gr to build
     a full list of modern Greek words
 
     https://www.greek-language.gr/greekLang/index.html
     """
+    print(f'[INFO] - Getting letter {letter} words...')
+    start = time.time()
     url = 'https://www.greek-language.gr/greekLang/modern_greek/tools/lexica/reverse/search.html'
+    results = []
+    page = 0
 
-    for letter in letters:
-        start_time = time.time()
-        output = open(f'output/{letter["letter"]}.txt', 'w')
-        start = 0
+    while page <= int(pages):
+        time.sleep(0.1)
+        endpoint = f'{url}?start={page}&lq={letter}*'
+        source = get_source(endpoint)
+        words = parse(source)
+        page = page + 10
+        for word in words:
+            results.append(word)
 
-        while start <= letter["pages"]:
-            time.sleep(0.1)
-            endpoint = f'{url}?start={start}&lq={letter["letter"]}*'
-            start = start + 10
-            source = get_source(endpoint)
-            words = parse(source)
-            for word in words:
-                output.write(f'{word}\n')
-
-        output.close()
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f'{letter["letter"]} [DONE] [{elapsed_time}]')
-
-
-def init():
-    """
-    Create output folder
-    """
-    print("Creating output folder...")
-    if os.path.isdir('output'):
-        shutil.rmtree('output')
-
-    os.mkdir('output')
+    end = time.time()
+    total = end - start
+    print(f'[SUCCESS] - Got {letter} in {total}')
+    return results
 
 
 def main(argv):
-    options = []
+    letters = alphabet
+    is_clean = False
+    is_fresh = False
+    is_json = False
+    is_romanize = False
 
     try:
-        opts, args = getopt.getopt(argv, "l:")
+        opts, args = getopt.getopt(
+            argv, "l:fcrj", ['length', 'fresh', 'clean', 'romanize', 'json']
+        )
     except getopt.GetoptError:
-        print('start.py -l <letter(s)>')
+        print('start.py -l <letter(s)> -f -c -r -j')
         sys.exit(2)
 
     for opt, arg in opts:
-        if opt in ('-l'):
-            options = arg.split(',')
+        if opt in ('-l', '--length'):
+            letters = list(
+                filter(lambda x: x['letter'] in arg.split(','), alphabet)
+            )
+        elif opt in ('-f', '--fresh'):
+            is_fresh = True
+        elif opt in ('-c', '--clean'):
+            is_clean = True
+        elif opt in ('-r', '--romanize'):
+            is_romanize = True
+        elif opt in ('-j', '--json'):
+            is_json = True
 
-    # Return user's matching letters from alphabet
-    if not len(options):
-        letters = alphabet
-    else:
-        letters = list(filter(lambda x: x['letter'] in options, alphabet))
+    if is_clean:
+        clean()
 
-    init()
+        if not is_fresh and not is_romanize and not is_json:
+            sys.exit(2)
 
-    start_scraping = time.time()
-    print("Getting words...")
-    scrape(letters)
-    end_scraping = time.time()
-    total_scraping = end_scraping - start_scraping
-    print(f'Total scraping time {total_scraping}')
+    for letter in letters:
+        file_name = f'{letter["letter"]}'
+        pages = f'{letter["pages"]}'
+        data = get_data(f'output/{file_name}.txt')
+        # Run only if user wants to update the words
+        if is_fresh:
+            data = scrape(file_name, pages)
+            export(file_name, data)
 
-    start_compilation = time.time()
-    print("Compiling files...")
-    compile(letters)
-    end_compilation = time.time()
-    total_compilation = end_compilation - start_compilation
-    print(f'Finished in {total_compilation}')
-    total_time = end_compilation - start_scraping
-    print(f'Total time {total_time}')
+        if is_romanize:
+            file_name_romanized = f'{file_name}_romanized'
+
+            results = romanize(data)
+            export(file_name_romanized, results)
+
+            if is_json:
+                export(file_name_romanized, results, 'json')
+
+        if is_json:
+            export(file_name, data, 'json')
+
+    results = compile_words(letters)
+    export('el', results)
+
+    if is_json:
+        export('el', results, 'json')
+
+    if is_romanize:
+        file_name_romanized = 'el_romanized'
+        results = romanize(results)
+        export(file_name_romanized, results)
+
+        if is_json:
+            export(file_name_romanized, results, 'json')
+
+    sys.exit(2)
 
 
 if __name__ == '__main__':
