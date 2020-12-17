@@ -12,7 +12,7 @@ $ python start.py [options]
 
 | Option         | Type      | Description                         |
 | -------------- | --------- | ----------------------------------- |
-| -l, --length   | String(s) | Get results for specified letter(s) |
+| -l, --letters  | String(s) | Get results for specified letter(s) |
 | -f, --fresh    |           | Fresh start                         |
 | -c, --clean    |           | Clean output directory              |
 | -r, --romanize |           | Romazize words                      |

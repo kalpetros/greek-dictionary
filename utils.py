@@ -1,3 +1,4 @@
+import click
 import os
 import shutil
 import sys
@@ -18,7 +19,7 @@ def get_data(file_name):
             for word in words:
                 results.append(word.strip())
     except Exception as e:
-        print(str(e))
+        log(f'Could not get data {str(e)}', 'warning')
 
     return results
 
@@ -28,25 +29,25 @@ def check():
     Check if el.txt file exists
     """
     if not os.path.isfile('files/el.txt'):
-        print('el.txt is missing from files. Please restore the repository.')
+        log('el.txt is missing from files. Please restore the repository.', 'warning')
         sys.exit(2)
 
     if not os.path.isdir('output'):
-        print('Output folder is missing. Creating folder...')
+        log('Output folder is missing. Creating folder...', 'warning')
         os.mkdir('output')
 
 
-def clean():
+def clean_output():
     """
     Remove output files and folder
     """
     if not os.path.isdir('output'):
-        print('[INFO] - Working directory already clean...')
+        log('Working directory already clean...', 'info')
         return
 
     shutil.rmtree('output')
 
-    print('[SUCCESS] - Working directory clean')
+    log('Working directory clean', 'success')
 
     return
 
@@ -55,7 +56,8 @@ def compile_words(letters):
     """
     Compile individual word files into one
     """
-    print("[INFO] - Compiling files...")
+    log('Compiling files...', 'info')
+
     start = time.time()
     results = []
 
@@ -68,7 +70,9 @@ def compile_words(letters):
 
     end = time.time()
     total = end - start
-    print(f'[SUCCESS] - Compiled in {total}')
+
+    log(f'Compiled in {total}', 'success')
+
     return results
 
 
@@ -99,7 +103,7 @@ def clean_duplicates(min_length, max_length, words):
     return cleaned
 
 
-def romanize(words):
+def romanize_words(words):
     """
     Romanize words
     """
@@ -140,7 +144,8 @@ def romanize(words):
     results = []
 
     if not words:
-        print('[WARNING] - No data provided')
+        log('No data provided', 'info')
+
         return results
 
     for word in words:
@@ -151,13 +156,13 @@ def romanize(words):
                 char = char.lower()
                 result.append(mappings[char])
             except Exception as e:
-                # print(str(e))
-                pass
+                log(f'Could not map {str(e)}', 'warning')
 
         word = ''.join(result)
         results.append(word)
 
-    print('[SUCCESS] - Romanized all words')
+    log('Romanized all words', 'success')
+
     return results
 
 
@@ -166,12 +171,13 @@ def export(file_name, words, file_type='txt'):
     Create a file with words
     """
     if not words:
-        print('[WARNING] - No data provided')
+        log('No data provided', 'warning')
         return
 
     check()
 
-    print(f'[INFO] - Creating file {file_name}.{file_type}...')
+    log(f'Creating file {file_name}.{file_type}...', 'info')
+
     output = open(f'output/{file_name}.{file_type}', 'w')
 
     if file_type == 'json':
@@ -187,8 +193,15 @@ def export(file_name, words, file_type='txt'):
         output.write(']')
 
     output.close()
-    print(f'[SUCCESS] - Created {file_name}.{file_type}')
+
+    log(f'Created {file_name}.{file_type}', 'success')
 
 
-def log(type, text):
-    return text
+def log(text, type):
+    colors = {
+        'success': 'green',
+        'info': 'yellow',
+        'warning': 'red'
+    }
+
+    click.secho(f'[{type}] - {text}', fg=colors[type])
