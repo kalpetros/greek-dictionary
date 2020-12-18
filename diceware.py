@@ -56,7 +56,6 @@ def diceware(words):
         p4 = (itr_p4 % 6**3) + inc_p4 - itr_p4  # resets every 6^4 = 1296
         p5 = (itr_p5 % 6**4) + inc_p5 - itr_p5  # resets every 6^5 = 7776
 
-
         itr_p2 = itr_p2 + 1
         itr_p3 = itr_p3 + 1
         itr_p4 = itr_p4 + 1
