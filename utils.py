@@ -1,7 +1,7 @@
 import click
 import os
-import shutil
 import requests
+import shutil
 import sys
 import time
 
