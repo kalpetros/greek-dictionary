@@ -3,7 +3,6 @@ import sys
 
 from utils import alphabet
 from utils import clean_output
-from utils import compile_words
 from utils import export
 from utils import get_data
 from utils import romanize_words
@@ -92,9 +91,6 @@ def main(has_letters, is_fresh, is_clean, is_romanize, is_json, is_diceware):
 
     if is_clean:
         clean_output()
-
-        if not is_fresh and not is_romanize and not is_json:
-            sys.exit(2)
 
     if is_fresh:
         processes = []

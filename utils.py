@@ -222,33 +222,6 @@ def clean_output():
     return
 
 
-def compile_words(letters):
-    """
-    Compile individual word files into one
-    """
-    log('Compiling files...', 'info')
-
-    start = time.time()
-    results = []
-
-    for letter in letters:
-        file_name = f'{letter["letter"]}.txt'
-
-        words = get_data(f'output/{file_name}')
-        for word in words:
-            results.append(word)
-
-    if not results:
-        return results
-
-    end = time.time()
-    total = end - start
-
-    log(f'Compiled in {total}', 'success')
-
-    return results
-
-
 def romanize_words(words):
     """
     Romanize words
