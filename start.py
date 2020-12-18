@@ -1,6 +1,7 @@
 import click
 import sys
 
+from utils import alphabet
 from utils import clean_output
 from utils import compile_words
 from utils import export
@@ -11,104 +12,6 @@ from utils import scrape
 
 from diceware import diceware
 
-alphabet = [
-    {
-        'letter': 'Α',
-        'pages': 31660
-    },
-    {
-        'letter': 'Β',
-        'pages': 5050
-    },
-    {
-        'letter': 'Γ',
-        'pages': 5890
-    },
-    {
-        'letter': 'Δ',
-        'pages': 7130
-    },
-    {
-        'letter': 'Ε',
-        'pages': 12530
-    },
-    {
-        'letter': 'Ζ',
-        'pages': 1500
-    },
-    {
-        'letter': 'Η',
-        'pages': 1310
-    },
-    {
-        'letter': 'Θ',
-        'pages': 2300
-    },
-    {
-        'letter': 'Ι',
-        'pages': 1720
-    },
-    {
-        'letter': 'Κ',
-        'pages': 17700
-    },
-    {
-        'letter': 'Λ',
-        'pages': 4740
-    },
-    {
-        'letter': 'Μ',
-        'pages': 13020
-    },
-    {
-        'letter': 'Ν',
-        'pages': 3790
-    },
-    {
-        'letter': 'Ξ',
-        'pages': 5250
-    },
-    {
-        'letter': 'Ο',
-        'pages': 4970
-    },
-    {
-        'letter': 'Π',
-        'pages': 18560
-    },
-    {
-        'letter': 'Ρ',
-        'pages': 2720
-    },
-    {
-        'letter': 'Σ',
-        'pages': 14340
-    },
-    {
-        'letter': 'Τ',
-        'pages': 7680
-    },
-    {
-        'letter': 'Υ',
-        'pages': 3170
-    },
-    {
-        'letter': 'Φ',
-        'pages': 5640
-    },
-    {
-        'letter': 'Χ',
-        'pages': 5370
-    },
-    {
-        'letter': 'Ψ',
-        'pages': 2080
-    },
-    {
-        'letter': 'Ω',
-        'pages': 470
-    }
-]
 
 @click.command()
 @click.option(
