@@ -17,23 +17,24 @@ $ python start.py [options]
 | -c, --clean    |           | Clean output directory              |
 | -r, --romanize |           | Romazize words                      |
 | -j, --json     |           | Generate .json files                |
+| -d, --diceware |           | Generate diceware word list         |
 
 ### Examples
 
 To build a fresh dictionary:
 
 ```
-$ python start.py -f -r -j
+$ python start.py -f
 ```
 
 To build a dictionary for letter Ω:
 
 ```
-$ python start.py -l Ω -f -r -j
+$ python start.py -l Ω -f
 ```
 
 To build a dictionary for letter Β and Ω:
 
 ```
-$ python start.py -l Β,Ω -f -r -j
+$ python start.py -l Β,Ω -f
 ```
