@@ -12,6 +12,7 @@ from utils import get_data
 from utils import log
 from utils import romanize_words
 
+from diceware import diceware
 
 alphabet = [
     {
@@ -112,7 +113,6 @@ alphabet = [
     }
 ]
 
-
 def get_source(url):
     """
     Get page source for the given url
@@ -209,7 +209,15 @@ def scrape(letter: str, pages: int):
     default=False,
     help='Generate .json files'
 )
-def main(has_letters, is_fresh, is_clean, is_romanize, is_json):
+@click.option(
+    '-d',
+    '--diceware',
+    'is_diceware',
+    is_flag=True,
+    default=False,
+    help='Generate diceware files'
+)
+def main(has_letters, is_fresh, is_clean, is_romanize, is_json, is_diceware):
     letters = alphabet
 
     if has_letters:
@@ -257,6 +265,15 @@ def main(has_letters, is_fresh, is_clean, is_romanize, is_json):
 
         if is_json:
             export(file_name_romanized, results, 'json')
+
+    if is_diceware:
+        results, results_numbered = diceware(results)
+        export('el_diceware', results)
+        export('el_diceware_numbered', results_numbered)
+
+        if is_json:
+            export('el_diceware', results, 'json')
+            export('el_diceware_numbered', results_numbered, 'json')
 
     sys.exit(2)
 

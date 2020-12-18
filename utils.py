@@ -68,22 +68,13 @@ def compile_words(letters):
         for word in words:
             results.append(word)
 
+    if not results:
+        return results
+
     end = time.time()
     total = end - start
 
     log(f'Compiled in {total}', 'success')
-
-    return results
-
-
-def clean_profanity(words):
-    """
-    Remove profanity
-    """
-    results = []
-
-    for word in words:
-        results.append(word)
 
     return results
 
