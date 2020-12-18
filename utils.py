@@ -1,8 +1,78 @@
 import click
 import os
 import shutil
+import requests
 import sys
 import time
+
+from bs4 import BeautifulSoup
+
+
+def log(text, type):
+    colors = {
+        'success': 'green',
+        'info': 'yellow',
+        'warning': 'red'
+    }
+
+    click.secho(f'[{type}] - {text}', fg=colors[type])
+
+
+def get_source(url):
+    """
+    Get page source for the given url
+    """
+    rs = requests.get(url)
+    source = BeautifulSoup(rs.content, 'html.parser')
+
+    return source
+
+
+def parse(source):
+    """
+    Return words array for the given page source
+    """
+    children = source.find(id='lemmas').children
+    words = []
+
+    for node in children:
+        dt = node.find('dt')
+
+        if dt != -1:
+            word = dt.find('b').text.strip(',')
+            words.append(word)
+
+    return words
+
+
+def scrape(letter: str, pages: int):
+    """
+    Scrapes www.greek-language.gr to build
+    a full list of modern Greek words
+
+    https://www.greek-language.gr/greekLang/index.html
+    """
+    log(f'Getting letter {letter} words...', 'info')
+    start = time.time()
+    url = 'https://www.greek-language.gr/greekLang/modern_greek/tools/lexica/reverse/search.html'
+    results = []
+    page = 0
+
+    while page <= int(pages):
+        time.sleep(0.1)
+        endpoint = f'{url}?start={page}&lq={letter}*'
+        source = get_source(endpoint)
+        words = parse(source)
+        page = page + 10
+        for word in words:
+            results.append(word)
+
+    end = time.time()
+    total = end - start
+
+    log(f'Got {letter} in {total}', 'success')
+
+    return results
 
 
 def get_data(file_name):
@@ -26,7 +96,7 @@ def get_data(file_name):
 
 def check():
     """
-    Check if el.txt file exists
+    Check if necessary files exist
     """
     if not os.path.isfile('files/el.txt'):
         log('el.txt is missing from files. Please restore the repository.', 'warning')
@@ -39,7 +109,7 @@ def check():
 
 def clean_output():
     """
-    Remove output files and folder
+    Delete output files and folder
     """
     if not os.path.isdir('output'):
         log('Working directory already clean...', 'info')
@@ -77,21 +147,6 @@ def compile_words(letters):
     log(f'Compiled in {total}', 'success')
 
     return results
-
-
-def clean_duplicates(min_length, max_length, words):
-    """
-    Remove duplicates
-    """
-    cleaned = []
-
-    for word in words:
-        if len(word) > int(min_length) and len(word) < int(max_length):
-            cleaned.append(word.strip())
-
-    cleaned = list(set(cleaned))
-
-    return cleaned
 
 
 def romanize_words(words):
@@ -159,7 +214,7 @@ def romanize_words(words):
 
 def export(file_name, words, file_type='txt'):
     """
-    Create a file with words
+    Create a words file
     """
     if not words:
         log('No data provided', 'warning')
@@ -186,13 +241,3 @@ def export(file_name, words, file_type='txt'):
     output.close()
 
     log(f'Created {file_name}.{file_type}', 'success')
-
-
-def log(text, type):
-    colors = {
-        'success': 'green',
-        'info': 'yellow',
-        'warning': 'red'
-    }
-
-    click.secho(f'[{type}] - {text}', fg=colors[type])
