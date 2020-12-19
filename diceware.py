@@ -1,21 +1,30 @@
-import os
-import shutil
+from utils import is_clean
 
 
 def diceware(words):
     """
     Build the diceware list
     """
+    total_words = 7776
     results = []
     results_numbered = []
+
+    # Remove duplicates
+    words = list(set(words))
 
     with open('files/dicewarekit.txt', 'r') as file:
         for word in file:
             results.append(word.strip())
 
-    for word in words:
-        if len(word) > 3 and len(word) < 7:
+    if len(words) + len(results) < total_words:
+        for word in words:
             results.append(word)
+    else:
+        for word in words:
+            if len(results) < total_words:
+                if len(word) > 3 and len(word) < 7:
+                    if is_clean(word):
+                        results.append(word)
 
     results.sort()
 

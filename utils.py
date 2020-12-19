@@ -108,6 +108,19 @@ alphabet = [
 ]
 
 
+def is_clean(word):
+    """
+    Check for profanity
+    """
+    clean = True
+    profane_words = []
+
+    if word in profane_words:
+        clean = False
+
+    return clean
+
+
 def log(text, type):
     colors = {
         'success': 'green',
@@ -240,6 +253,8 @@ def romanize_words(words):
         'θ': 'th',
         'ι': 'i',
         'ί': 'i',
+        'ϊ': 'i',
+        'ΐ': 'i',
         'κ': 'k',
         'λ': 'l',
         'μ': 'm',
@@ -252,13 +267,21 @@ def romanize_words(words):
         'σ': 's',
         'ς': 's',
         'τ': 't',
-        'υ': 'u',
-        'ύ': 'u',
+        'υ': 'y',
+        'ύ': 'y',
+        'ϋ': 'y',
+        'ΰ': 'y',
         'φ': 'f',
         'χ': 'h',
+        'x': 'h',
         'ψ': 'ps',
         'ω': 'o',
-        'ώ': 'o'
+        'ώ': 'o',
+        '-': '-',
+        '!': '!',
+        '.': '.',
+        ',': ',',
+        "'": "'"
     }
     results = []
 

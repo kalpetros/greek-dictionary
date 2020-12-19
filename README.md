@@ -4,6 +4,20 @@ A utility to build a complete Greek dictionary
 
 # Getting started
 
+### Install dependencies
+
+```
+$ pipenv install
+```
+
+### Activate shell
+
+```
+$ pipenv shell
+```
+
+### Build dictionary
+
 ```
 $ python start.py [options]
 ```

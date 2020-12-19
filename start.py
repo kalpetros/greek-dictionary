@@ -134,6 +134,16 @@ def main(has_letters, is_fresh, is_clean, is_romanize, is_json, is_diceware):
         export('el_diceware', results)
         export('el_diceware_numbered', results_numbered)
 
+        if is_romanize:
+            words_romanized = romanize_words(words)
+            romanized, romanized_numbered = diceware(words_romanized)
+            export('el_diceware_romanized', romanized)
+            export('el_diceware_romanized_numbered', romanized_numbered)
+
+            if is_json:
+                export('el_diceware_romanized', romanized, 'json')
+                export('el_diceware_romanized_numbered', romanized_numbered, 'json')
+
         if is_json:
             export('el_diceware', results, 'json')
             export('el_diceware_numbered', results_numbered, 'json')
