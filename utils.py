@@ -4,6 +4,7 @@ import requests
 import shutil
 import sys
 import time
+import json
 
 from bs4 import BeautifulSoup
 
@@ -158,37 +159,88 @@ def parse(source):
     return words
 
 
-def scrape(letter: str, pages: int):
+def scrape(
+    letter: str,
+    pages: int,
+    is_romanized: bool = False,
+    is_json: bool = False,
+):
     """
     Scrapes www.greek-language.gr to build
     a full list of modern Greek words
 
     https://www.greek-language.gr/greekLang/index.html
     """
-    log(f'Getting letter {letter} words...', 'info')
     start = time.time()
     url = 'https://www.greek-language.gr/greekLang/modern_greek/tools/lexica/reverse/search.html'
     results = []
     page = 0
+    existing_words = []
+    existing_words_romanized = []
+    final_words = []
+    final_words_romanized = []
+
+    log(f'Writing {letter}.txt file...', 'info')
+    txt_output = open(f'output/{letter}.txt', 'a')
+
+    try:
+        with open(f'output/{letter}.txt') as file:
+            existing_words = [word.strip() for word in file]
+    except Exception:
+        pass
+    
+    if is_romanized:
+        log(f'Writing {letter}_romanized.txt file...', 'info')
+        romanized_output = open(f'output/{letter}_romanized.txt', 'a')
+        try:
+            with open(f'output/{letter}_romanized.txt') as file:
+                existing_words_romanized = [word.strip() for word in file]
+        except Exception:
+            pass
 
     while page <= int(pages):
         time.sleep(0.1)
-        endpoint = f'{url}?start={page}&lq={letter}*'
-        source = get_source(endpoint)
+        letter_url = f'{url}?start={page}&lq={letter}*'
+        source = get_source(letter_url)
         words = parse(source)
         page = page + 10
         for word in words:
-            results.append(word)
+            if word not in existing_words:
+                txt_output.write(f'{word.strip()}\n')
+                final_words.append(word.strip())
+
+            if is_romanized:
+                if word not in existing_words_romanized:
+                    word = romanize_word(word)
+                    romanized_output.write(f'{word.strip()}\n')
+                    final_words_romanized.append(word.strip())
+
+    txt_output.close()
+
+    if is_romanized:
+        romanized_output.close()
+
+    # Create json files
+    if is_json:
+        log(f'Writing {letter}.json file... ', 'info')
+
+        with open(f'output/{letter}.json', 'w', encoding='utf-8') as json_file:
+            json.dump(final_words, json_file, ensure_ascii=False)
+        
+        if is_romanized:
+            log(f'Writing {letter}_romanized.json file...', 'info')
+            with open(f'output/{letter}_romanized.json', 'w', encoding='utf-8') as json_file:
+                json.dump(final_words_romanized, json_file, ensure_ascii=False)
 
     end = time.time()
-    total = end - start
+    total = round(end - start, 2)
 
-    log(f'Got {letter} in {total}', 'success')
+    log(f'Letter {letter} completed in {total} seconds', 'success')
 
     return results
 
 
-def get_data(file_name):
+def get_words(file_name) -> list:
     """
     Return words in a given file
     """
@@ -211,8 +263,8 @@ def check():
     """
     Check if necessary files exist
     """
-    if not os.path.isfile('files/el.txt'):
-        log('el.txt is missing from files. Please restore the repository.', 'warning')
+    if not os.path.isfile('files/index.txt'):
+        log('index.txt is missing from files. Please restore the repository.', 'warning')
         sys.exit(2)
 
     if not os.path.isdir('output'):
@@ -220,12 +272,11 @@ def check():
         os.mkdir('output')
 
 
-def clean_output():
+def clean_output() -> None:
     """
     Delete output files and folder
     """
     if not os.path.isdir('output'):
-        log('Working directory already clean...', 'info')
         return
 
     shutil.rmtree('output')
@@ -235,9 +286,9 @@ def clean_output():
     return
 
 
-def romanize_words(words):
+def romanize_word(word=None):
     """
-    Romanize words
+    Romanize word
     """
     mappings = {
         'α': 'a',
@@ -277,35 +328,21 @@ def romanize_words(words):
         'ψ': 'ps',
         'ω': 'o',
         'ώ': 'o',
-        '-': '-',
-        '!': '!',
-        '.': '.',
-        ',': ',',
-        "'": "'"
     }
-    results = []
+    if not word:
+        return None
 
-    if not words:
-        log('No data provided', 'info')
+    chars = list(word.strip())
+    result = []
+    for char in chars:
+        try:
+            char = char.lower()
+            result.append(mappings.get(char, char))
+        except Exception as e:
+            log(f'Could not map {str(e)}', 'warning')
 
-        return results
-
-    for word in words:
-        result = []
-        chars = list(word.strip())
-        for char in chars:
-            try:
-                char = char.lower()
-                result.append(mappings[char])
-            except Exception as e:
-                log(f'Could not map {str(e)}', 'warning')
-
-        word = ''.join(result)
-        results.append(word)
-
-    log('Romanized all words', 'success')
-
-    return results
+    word = ''.join(result)
+    return word
 
 
 def export(file_name, words, file_type='txt'):
@@ -313,27 +350,16 @@ def export(file_name, words, file_type='txt'):
     Create a words file
     """
     if not words:
-        log('No data provided', 'warning')
+        log('No data to export', 'warning')
         return
-
-    check()
 
     log(f'Creating file {file_name}.{file_type}...', 'info')
 
-    output = open(f'output/{file_name}.{file_type}', 'w')
+    with open(f'output/{file_name}.{file_type}', 'w', encoding='utf-8') as output:
+        if file_type == 'json':
+            json.dump(words, output, ensure_ascii=False)
+        else:
+            for word in words:
+                output.write(f'{word.strip()}\n')
 
-    if file_type == 'json':
-        output.write('[')
-
-    for word in words:
-        if file_type == 'txt':
-            output.write(f'{word.strip()}\n')
-        elif file_type == 'json':
-            output.write(f'"{word.strip()}",\n')
-
-    if file_type == 'json':
-        output.write(']')
-
-    output.close()
-
-    log(f'Created {file_name}.{file_type}', 'success')
+        output.close()

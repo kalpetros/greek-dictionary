@@ -1,35 +1,19 @@
 import click
 import sys
+import json
+import os
+
+from multiprocessing import Pool
+
+from diceware import diceware
 
 from utils import alphabet
 from utils import clean_output
 from utils import export
-from utils import get_data
-from utils import romanize_words
+from utils import get_words
+from utils import log
 from utils import scrape
-
-from diceware import diceware
-from multiprocessing import Pool
-
-
-def build(file_name, pages, is_romanize, is_json):
-    data = scrape(file_name, pages)
-    export(file_name, data)
-
-    if is_romanize:
-        file_name_romanized = f'{file_name}_romanized'
-
-        results = romanize_words(data)
-        export(file_name_romanized, results)
-
-        if is_json:
-            export(file_name_romanized, results, 'json')
-
-    if is_json:
-        export(file_name, data, 'json')
-
-    return data
-
+from utils import romanize_word
 
 @click.command()
 @click.option(
@@ -41,11 +25,11 @@ def build(file_name, pages, is_romanize, is_json):
 )
 @click.option(
     '-f',
-    '--fresh',
-    'is_fresh',
+    '--files',
+    'use_files',
     is_flag=True,
     default=False,
-    help='Fresh start'
+    help='Use existing files to compile a dictionary'
 )
 @click.option(
     '-c',
@@ -57,8 +41,8 @@ def build(file_name, pages, is_romanize, is_json):
 )
 @click.option(
     '-r',
-    '--romanize',
-    'is_romanize',
+    '--romanized',
+    'is_romanized',
     is_flag=True,
     default=False,
     help='Romazize words'
@@ -79,74 +63,94 @@ def build(file_name, pages, is_romanize, is_json):
     default=False,
     help='Generate diceware files'
 )
-def main(has_letters, is_fresh, is_clean, is_romanize, is_json, is_diceware):
+def main(has_letters, use_files, is_clean, is_romanized, is_json, is_diceware):
     letters = alphabet
     pool = Pool()
-    words = []
 
     if has_letters:
         letters = list(
             filter(lambda x: x['letter'] in has_letters.split(','), alphabet)
         )
 
+    # Delete folders and files
     if is_clean:
         clean_output()
 
-    if is_fresh:
-        processes = []
+    if not os.path.isdir('output'):
+        log('Output folder is missing. Creating folder...', 'warning')
+        os.mkdir('output')
 
+    # Begin data scraping
+    processes = []
+    if not use_files:
         for letter in letters:
-            file_name = f'{letter["letter"]}'
             pages = f'{letter["pages"]}'
-            processes.append(
-                pool.apply_async(
-                    build, [file_name, pages, is_romanize, is_json]
-                )
+            process = pool.apply_async(
+                scrape, [letter["letter"], pages, is_romanized, is_json]
             )
+            processes.append(process)
 
-        for process in processes:
-            data = process.get()
-            for word in data:
-                words.append(word)
-    else:
-        for letter in letters:
-            file_name = f'{letter["letter"]}'
-            data = get_data(f'output/{file_name}.txt')
+    for process in processes:    
+        process.get()
 
-            for word in data:
-                words.append(word)
+    # Compile index
+    log(f'Compiling index.txt file...', 'info')
+    final_words = []
+    final_words_romanized = []
+    for letter in letters:
+        compiled_index = open('output/index.txt', 'w')
+        if is_romanized:
+            log(f'Compiling index_romanized.txt file...', 'info')
+            compiled_index_romanized = open(f'output/index_romanized.txt', 'a')
 
-    export('el', words)
+        words = get_words(f'output/{letter["letter"]}.txt')
+        for word in words:
+            compiled_index.write(f'{word.strip()}\n')
+            final_words.append(f'{word.strip()}')
 
+            if is_romanized:
+                word = romanize_word(word)
+                compiled_index_romanized.write(f'{word.strip()}\n')
+                final_words_romanized.append(f'{word.strip()}')
+
+        compiled_index.close()
+
+        if is_romanized:
+            compiled_index_romanized.close()
+
+    # Compile json files
     if is_json:
-        export('el', words, 'json')
+        log(f'Compiling index.json...', 'info')
 
-    if is_romanize:
-        file_name_romanized = 'el_romanized'
-        results = romanize_words(words)
-        export(file_name_romanized, results)
-
-        if is_json:
-            export(file_name_romanized, results, 'json')
+        with open(f'output/index.json', 'w', encoding='utf-8') as json_file:
+            json.dump(final_words, json_file, ensure_ascii=False)
+        
+        if is_romanized:
+            log(f'Compiling index_romanized.json...', 'info')
+            with open(f'output/index_romanized.json', 'w', encoding='utf-8') as json_file:
+                json.dump(final_words_romanized, json_file, ensure_ascii=False)
 
     if is_diceware:
+        words = get_words(f'output/index.txt')
         results, results_numbered = diceware(words)
-        export('el_diceware', results)
-        export('el_diceware_numbered', results_numbered)
 
-        if is_romanize:
-            words_romanized = romanize_words(words)
+        if is_romanized:
+            words_romanized = get_words(f'output/index_romanized.txt')
             romanized, romanized_numbered = diceware(words_romanized)
-            export('el_diceware_romanized', romanized)
-            export('el_diceware_romanized_numbered', romanized_numbered)
+
+            export('diceware_romanized', romanized)
+            export('diceware_romanized_numbered', romanized_numbered)
 
             if is_json:
-                export('el_diceware_romanized', romanized, 'json')
-                export('el_diceware_romanized_numbered', romanized_numbered, 'json')
+                export('diceware_romanized', romanized, 'json')
+                export('diceware_romanized_numbered', romanized_numbered, 'json')
+
+        export('diceware', results)
+        export('diceware_numbered', results_numbered)
 
         if is_json:
-            export('el_diceware', results, 'json')
-            export('el_diceware_numbered', results_numbered, 'json')
+            export('diceware', results, 'json')
+            export('diceware_numbered', results_numbered, 'json')
 
     sys.exit(2)
 
