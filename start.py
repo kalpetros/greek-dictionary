@@ -14,6 +14,8 @@ from utils import get_words
 from utils import log
 from utils import scrape
 from utils import romanize_word
+from utils import create_output_dir
+from tqdm import tqdm
 
 @click.command()
 @click.option(
@@ -77,33 +79,32 @@ def main(has_letters, use_files, is_clean, is_romanized, is_json, is_diceware):
         clean_output()
 
     if not os.path.isdir('output'):
-        log('Output folder is missing. Creating folder...', 'warning')
-        os.mkdir('output')
+        create_output_dir()
 
     # Begin data scraping
     processes = []
     if not use_files:
-        for letter in letters:
+        for idx, letter in enumerate(letters):
             pages = f'{letter["pages"]}'
             process = pool.apply_async(
-                scrape, [letter["letter"], pages, is_romanized, is_json]
+                scrape, [letter["letter"], pages, is_romanized, is_json, idx]
             )
             processes.append(process)
 
-    for process in processes:    
+    log("Creating dictionary...", "info")
+    for process in processes:
         process.get()
 
-    # Compile index
-    log(f'Compiling index.txt file...', 'info')
+    # Compile dictionary
+    log("Compiling dictionary...", "info")
     final_words = []
     final_words_romanized = []
-    for letter in letters:
+    for letter in tqdm(range(0, len(letters)), unit=" letters"):
         compiled_index = open('output/index.txt', 'w')
         if is_romanized:
-            log(f'Compiling index_romanized.txt file...', 'info')
             compiled_index_romanized = open(f'output/index_romanized.txt', 'a')
 
-        words = get_words(f'output/{letter["letter"]}.txt')
+        words = get_words(f'output/{letters[letter]["letter"]}.txt')
         for word in words:
             compiled_index.write(f'{word.strip()}\n')
             final_words.append(f'{word.strip()}')
@@ -120,23 +121,22 @@ def main(has_letters, use_files, is_clean, is_romanized, is_json, is_diceware):
 
     # Compile json files
     if is_json:
-        log(f'Compiling index.json...', 'info')
-
+        log(f'Compiling json files...', 'info')
         with open(f'output/index.json', 'w', encoding='utf-8') as json_file:
             json.dump(final_words, json_file, ensure_ascii=False)
+            json_file.close()
         
         if is_romanized:
-            log(f'Compiling index_romanized.json...', 'info')
             with open(f'output/index_romanized.json', 'w', encoding='utf-8') as json_file:
                 json.dump(final_words_romanized, json_file, ensure_ascii=False)
+                json_file.close()
 
     if is_diceware:
-        words = get_words(f'output/index.txt')
-        results, results_numbered = diceware(words)
+        log(f'Compiling diceware...', 'info')
+        results, results_numbered = diceware(final_words)
 
         if is_romanized:
-            words_romanized = get_words(f'output/index_romanized.txt')
-            romanized, romanized_numbered = diceware(words_romanized)
+            romanized, romanized_numbered = diceware(final_words_romanized)
 
             export('diceware_romanized', romanized)
             export('diceware_romanized_numbered', romanized_numbered)

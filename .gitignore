@@ -1,4 +1,3 @@
 *.pyc
 output/
 .venv/
-files/

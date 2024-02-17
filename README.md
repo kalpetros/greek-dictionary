@@ -3,7 +3,7 @@
 A utility to build a complete Greek dictionary.
 
 **Note:**
-Currently supported building an index.
+Currently it only supports building an index.
 
 # Getting started
 
