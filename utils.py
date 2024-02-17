@@ -1,14 +1,15 @@
 import click
+import json
 import os
 import requests
 import shutil
-import sys
 import time
-import json
+
 from time import sleep
 from tqdm import tqdm
 
 from bs4 import BeautifulSoup
+from multiprocessing import Pool
 
 
 alphabet = [
@@ -111,9 +112,84 @@ alphabet = [
 ]
 
 
+def diceware(words):
+    """
+    Build the diceware list.
+    """
+    total_words = 7776
+    results = []
+    results_numbered = []
+
+    # Remove duplicates
+    words = list(set(words))
+
+    with open('files/dicewarekit.txt', 'r') as file:
+        for word in file:
+            results.append(word.strip())
+
+    if len(words) + len(results) < total_words:
+        for word in words:
+            results.append(word)
+    else:
+        for word in words:
+            if len(results) < total_words:
+                if len(word) > 3 and len(word) < 7:
+                    if is_clean(word):
+                        results.append(word)
+
+    results.sort()
+
+    inc_p2 = inc_p3 = inc_p4 = inc_p5 = 1
+    itr_p2 = itr_p3 = itr_p4 = itr_p5 = 0
+    for index, word in enumerate(results):
+        if itr_p2 % 6 == 0:
+            inc_p2 = inc_p2 + 6 + 1
+
+        if itr_p3 % 6**2 == 0:
+            inc_p3 = inc_p3 + 6**2 + 1
+
+        if itr_p4 % 6**3 == 0:
+            inc_p4 = inc_p4 + 6**3 + 1
+
+        if itr_p5 % 6**4 == 0:
+            inc_p5 = inc_p5 + 6**4 + 1
+
+        if (itr_p2 % 6**2 == 0):
+            itr_p2 = 0
+            inc_p2 = 1
+
+        if (itr_p3 % 6**3 == 0):
+            itr_p3 = 0
+            inc_p3 = 1
+
+        if (itr_p4 % 6**4 == 0):
+            itr_p4 = 0
+            inc_p4 = 1
+
+        if (itr_p5 % 6**5 == 0):
+            itr_p5 = 0
+            inc_p5 = 1
+
+        p1 = index % 6 + 1  # resets every 6
+        p2 = (itr_p2 % 6) + inc_p2 - itr_p2  # resets every 6^2 = 36
+        p3 = (itr_p3 % 6**2) + inc_p3 - itr_p3  # resets every 6^3 = 216
+        p4 = (itr_p4 % 6**3) + inc_p4 - itr_p4  # resets every 6^4 = 1296
+        p5 = (itr_p5 % 6**4) + inc_p5 - itr_p5  # resets every 6^5 = 7776
+
+        itr_p2 = itr_p2 + 1
+        itr_p3 = itr_p3 + 1
+        itr_p4 = itr_p4 + 1
+        itr_p5 = itr_p5 + 1
+
+        combinations = f'{p5}{p4}{p3}{p2}{p1}'
+        results_numbered.append(f'{combinations}    {word}')
+
+    return results, results_numbered
+
+
 def is_clean(word):
     """
-    Check for profanity
+    Check for profanity.
     """
     clean = True
     profane_words = []
@@ -136,7 +212,7 @@ def log(text, type):
 
 def get_source(url):
     """
-    Get page source for the given url
+    Get page source for the given url.
     """
     rs = requests.get(url)
     source = BeautifulSoup(rs.content, 'html.parser')
@@ -146,7 +222,7 @@ def get_source(url):
 
 def parse(source):
     """
-    Return words array for the given page source
+    Return words array for the given page source.
     """
     children = source.find(id='lemmas').children
     words = []
@@ -170,7 +246,7 @@ def scrape(
 ):
     """
     Scrapes www.greek-language.gr to build
-    a full list of modern Greek words
+    a full list of modern Greek words.
 
     https://www.greek-language.gr/greekLang/index.html
     """
@@ -234,7 +310,7 @@ def scrape(
 
 def get_words(file_name) -> list:
     """
-    Return words in a given file
+    Return words in a given file.
     """
     results = []
 
@@ -251,7 +327,7 @@ def get_words(file_name) -> list:
     return results
 
 
-def create_output_dir():
+def create_output_dir() -> None:
     """
     Check if output directory exists.
     If not then create it.
@@ -261,18 +337,20 @@ def create_output_dir():
         os.mkdir('output')
 
 
-def clean_output() -> None:
+def clean_output_dir(is_clean: bool) -> None:
     """
-    Delete output files and folder
+    Delete output directory.
     """
     if not os.path.isdir('output'):
         return
 
-    shutil.rmtree('output')
+    if is_clean:
+        shutil.rmtree('output')
+
     return
 
 
-def romanize_word(word=None):
+def romanize_word(word: str = None) -> str:
     """
     Romanize word
     """
@@ -331,9 +409,9 @@ def romanize_word(word=None):
     return word
 
 
-def export(file_name, words, file_type='txt'):
+def export(file_name, words, file_type='txt') -> None:
     """
-    Create a words file
+    Create a words file.
     """
     if not words:
         log('No data to export', 'warning')
@@ -347,3 +425,86 @@ def export(file_name, words, file_type='txt'):
                 output.write(f'{word.strip()}\n')
 
         output.close()
+
+
+def fetch(
+        use_files: bool,
+        is_romanized: bool,
+        is_json: bool,
+        letters: list
+) -> None:
+    if not use_files:
+        log("Creating dictionary...", "info")
+        pool = Pool()
+        processes = []
+        for idx, letter in enumerate(letters):
+            pages = f'{letter["pages"]}'
+            process = pool.apply_async(
+                scrape, [letter["letter"], pages, is_romanized, is_json, idx]
+            )
+            processes.append(process)
+
+        for process in processes:
+            process.get()
+
+
+def compile_dictionary(
+        is_romanized: bool,
+        is_json: bool,
+        is_diceware: bool,
+        letters: list
+) -> None:
+    log("Compiling dictionary...", "info")
+    final_words = []
+    final_words_romanized = []
+    compiled_index = open('output/index.txt', 'w')
+    if is_romanized:
+        compiled_index_romanized = open(f'output/index_romanized.txt', 'a')
+    
+    for letter in tqdm(range(0, len(letters)), unit=" letters"):
+        words = get_words(f'output/{letters[letter]["letter"]}.txt')
+        for word in words:
+            compiled_index.write(f'{word.strip()}\n')
+            final_words.append(f'{word.strip()}')
+
+            if is_romanized:
+                word = romanize_word(word)
+                compiled_index_romanized.write(f'{word.strip()}\n')
+                final_words_romanized.append(f'{word.strip()}')
+
+    compiled_index.close()
+    if is_romanized:
+        compiled_index_romanized.close()
+
+    # Compile json files
+    if is_json:
+        log(f'Compiling json files...', 'info')
+        with open(f'output/index.json', 'w', encoding='utf-8') as json_file:
+            json.dump(final_words, json_file, ensure_ascii=False)
+            json_file.close()
+        
+        if is_romanized:
+            with open(f'output/index_romanized.json', 'w', encoding='utf-8') as json_file:
+                json.dump(final_words_romanized, json_file, ensure_ascii=False)
+                json_file.close()
+
+    if is_diceware:
+        log(f'Compiling diceware...', 'info')
+        results, results_numbered = diceware(final_words)
+
+        if is_romanized:
+            romanized, romanized_numbered = diceware(final_words_romanized)
+
+            export('diceware_romanized', romanized)
+            export('diceware_romanized_numbered', romanized_numbered)
+
+            if is_json:
+                export('diceware_romanized', romanized, 'json')
+                export('diceware_romanized_numbered', romanized_numbered, 'json')
+
+        export('diceware', results)
+        export('diceware_numbered', results_numbered)
+
+        if is_json:
+            export('diceware', results, 'json')
+            export('diceware_numbered', results_numbered, 'json')
