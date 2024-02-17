@@ -74,6 +74,10 @@ def main(has_letters, use_files, is_clean, is_romanized, is_json, is_diceware):
             filter(lambda x: x['letter'] in has_letters.split(','), alphabet)
         )
 
+    if use_files and is_clean:
+        log("You cannot use clean and files options together", "warning")
+        sys.exit(2)
+
     # Delete folders and files
     if is_clean:
         clean_output()
@@ -84,6 +88,7 @@ def main(has_letters, use_files, is_clean, is_romanized, is_json, is_diceware):
     # Begin data scraping
     processes = []
     if not use_files:
+        log("Creating dictionary...", "info")
         for idx, letter in enumerate(letters):
             pages = f'{letter["pages"]}'
             process = pool.apply_async(
@@ -91,7 +96,6 @@ def main(has_letters, use_files, is_clean, is_romanized, is_json, is_diceware):
             )
             processes.append(process)
 
-    log("Creating dictionary...", "info")
     for process in processes:
         process.get()
 
@@ -99,11 +103,11 @@ def main(has_letters, use_files, is_clean, is_romanized, is_json, is_diceware):
     log("Compiling dictionary...", "info")
     final_words = []
     final_words_romanized = []
+    compiled_index = open('output/index.txt', 'w')
+    if is_romanized:
+        compiled_index_romanized = open(f'output/index_romanized.txt', 'a')
+    
     for letter in tqdm(range(0, len(letters)), unit=" letters"):
-        compiled_index = open('output/index.txt', 'w')
-        if is_romanized:
-            compiled_index_romanized = open(f'output/index_romanized.txt', 'a')
-
         words = get_words(f'output/{letters[letter]["letter"]}.txt')
         for word in words:
             compiled_index.write(f'{word.strip()}\n')
@@ -114,10 +118,9 @@ def main(has_letters, use_files, is_clean, is_romanized, is_json, is_diceware):
                 compiled_index_romanized.write(f'{word.strip()}\n')
                 final_words_romanized.append(f'{word.strip()}')
 
-        compiled_index.close()
-
-        if is_romanized:
-            compiled_index_romanized.close()
+    compiled_index.close()
+    if is_romanized:
+        compiled_index_romanized.close()
 
     # Compile json files
     if is_json:
