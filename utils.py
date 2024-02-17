@@ -5,6 +5,7 @@ import requests
 import shutil
 import time
 
+from typing import Tuple
 from time import sleep
 from tqdm import tqdm
 
@@ -112,7 +113,7 @@ alphabet = [
 ]
 
 
-def diceware(words):
+def diceware(words: list) -> Tuple[list, list]:
     """
     Build the diceware list.
     """
@@ -134,7 +135,7 @@ def diceware(words):
         for word in words:
             if len(results) < total_words:
                 if len(word) > 3 and len(word) < 7:
-                    if is_clean(word):
+                    if is_profanity_free(word):
                         results.append(word)
 
     results.sort()
@@ -187,42 +188,44 @@ def diceware(words):
     return results, results_numbered
 
 
-def is_clean(word):
+def is_profanity_free(word: str) -> bool:
     """
     Check for profanity.
     """
-    clean = True
     profane_words = []
-
-    if word in profane_words:
-        clean = False
-
+    clean = word not in profane_words
     return clean
 
 
-def log(text, type):
-    colors = {
-        'success': 'green',
-        'info': 'yellow',
-        'warning': 'red'
-    }
+def log(text: str, type: str = 'info') -> None:
+    try:
+        colors = {
+            'success': 'green',
+            'info': 'yellow',
+            'warning': 'red'
+        }
 
-    click.secho(f'[{type}] - {text}', fg=colors[type])
+        click.secho(f'[{type}] - {text}', fg=colors[type])
+    except KeyError as e:
+        click.secho(f'Valid log types are: {", ".join(list(colors.keys()))}', fg='red')
 
 
-def get_source(url):
+def get_source(url: str) -> BeautifulSoup:
     """
     Get page source for the given url.
     """
-    rs = requests.get(url)
-    source = BeautifulSoup(rs.content, 'html.parser')
+    try:
+        rs = requests.get(url)
+    except requests.exceptions.MissingSchema as e:
+        log(e, 'warning')
+    else:
+        source = BeautifulSoup(rs.content, 'html.parser')
+        return source
 
-    return source
 
-
-def parse(source):
+def parse(source: BeautifulSoup) -> list:
     """
-    Return words array for the given page source.
+    Return a words list for the given page source.
     """
     children = source.find(id='lemmas').children
     words = []
@@ -237,78 +240,7 @@ def parse(source):
     return words
 
 
-def scrape(
-    letter: str,
-    pages: int,
-    is_romanized: bool = False,
-    is_json: bool = False,
-    position: int = 0,
-):
-    """
-    Scrapes www.greek-language.gr to build
-    a full list of modern Greek words.
-
-    https://www.greek-language.gr/greekLang/index.html
-    """
-    url = 'https://www.greek-language.gr/greekLang/modern_greek/tools/lexica/reverse/search.html'
-    page = 0
-    existing_words = []
-    existing_words_romanized = []
-    final_words = []
-    final_words_romanized = []
-
-    txt_output = open(f'output/{letter}.txt', 'a')
-
-    try:
-        with open(f'output/{letter}.txt') as file:
-            existing_words = [word.strip() for word in file]
-            file.close()
-    except Exception:
-        pass
-    
-    if is_romanized:
-        romanized_output = open(f'output/{letter}_romanized.txt', 'a')
-        try:
-            with open(f'output/{letter}_romanized.txt') as file:
-                existing_words_romanized = [word.strip() for word in file]
-                file.close()
-        except Exception:
-            pass
-
-    for page in tqdm(range(0, int(pages) + 10, 10), position=position, desc=letter, unit=" pages"):
-        time.sleep(0.1)
-        letter_url = f'{url}?start={page}&lq={letter}*'
-        source = get_source(letter_url)
-        words = parse(source)
-        for word in words:
-            if word not in existing_words:
-                txt_output.write(f'{word.strip()}\n')
-                final_words.append(word.strip())
-
-            if is_romanized:
-                if word not in existing_words_romanized:
-                    word = romanize_word(word)
-                    romanized_output.write(f'{word.strip()}\n')
-                    final_words_romanized.append(word.strip())
-
-    txt_output.close()
-
-    if is_romanized:
-        romanized_output.close()
-
-    # Create json files
-    if is_json:
-        with open(f'output/{letter}.json', 'w', encoding='utf-8') as json_file:
-            json.dump(final_words, json_file, ensure_ascii=False)
-            json_file.close()
-        
-        if is_romanized:
-            with open(f'output/{letter}_romanized.json', 'w', encoding='utf-8') as json_file:
-                json.dump(final_words_romanized, json_file, ensure_ascii=False)
-                json_file.close()
-
-
-def get_words(file_name) -> list:
+def get_words(file_name: str) -> list:
     """
     Return words in a given file.
     """
@@ -317,12 +249,11 @@ def get_words(file_name) -> list:
     if not os.path.isfile(file_name):
         return results
 
-    try:
-        with open(file_name, 'r') as words:
-            for word in words:
-                results.append(word.strip())
-    except Exception as e:
-        log(f'Could not get data {str(e)}', 'warning')
+    with open(file_name, 'r') as words:
+        for word in words:
+            results.append(word.strip())
+
+        words.close()
 
     return results
 
@@ -341,18 +272,13 @@ def clean_output_dir(is_clean: bool) -> None:
     """
     Delete output directory.
     """
-    if not os.path.isdir('output'):
-        return
-
-    if is_clean:
+    if os.path.isdir('output') and is_clean:
         shutil.rmtree('output')
-
-    return
 
 
 def romanize_word(word: str = None) -> str:
     """
-    Romanize word
+    Romanize a given word.
     """
     mappings = {
         'α': 'a',
@@ -399,22 +325,18 @@ def romanize_word(word: str = None) -> str:
     chars = list(word.strip())
     result = []
     for char in chars:
-        try:
-            char = char.lower()
-            result.append(mappings.get(char, char))
-        except Exception as e:
-            log(f'Could not map {str(e)}', 'warning')
+        char = char.lower()
+        result.append(mappings.get(char, char))
 
-    word = ''.join(result)
-    return word
+    return ''.join(result)
 
 
-def export(file_name, words, file_type='txt') -> None:
+def export(file_name: str, words: list = None, file_type: str = 'txt') -> None:
     """
-    Create a words file.
+    Export a file.
     """
     if not words:
-        log('No data to export', 'warning')
+        log('Nothing to export', 'warning')
         return
 
     with open(f'output/{file_name}.{file_type}', 'w', encoding='utf-8') as output:
@@ -427,70 +349,131 @@ def export(file_name, words, file_type='txt') -> None:
         output.close()
 
 
+def scrape(
+    letter: str,
+    pages: int,
+    is_romanized: bool = False,
+    is_json: bool = False,
+    position: int = 0,
+) -> None:
+    """
+    Scrapes www.greek-language.gr to build
+    a full list of modern Greek words.
+
+    https://www.greek-language.gr/greekLang/index.html
+    """
+    url = 'https://www.greek-language.gr/greekLang/modern_greek/tools/lexica/reverse/search.html'
+    page = 0
+    final_words = []
+    final_words_romanized = []
+
+    txt_output = open(f'output/{letter}.txt', 'a')
+    existing_words = get_words(f'output/{letter}.txt')
+    
+    if is_romanized:
+        romanized_output = open(f'output/{letter}_romanized.txt', 'a')
+        existing_words_romanized = get_words(f'output/{letter}_romanized.txt')
+
+    for page in tqdm(range(0, int(pages) + 10, 10), position=position, desc=letter, unit=" pages"):
+        time.sleep(1)
+        letter_url = f'{url}?start={page}&lq={letter}*'
+        source = get_source(letter_url)
+        words = parse(source)
+        for word in words:
+            # Append word to file only if it doesn't already exists
+            if word not in existing_words:
+                txt_output.write(f'{word.strip()}\n')
+                final_words.append(word.strip())
+
+            if is_romanized:
+                # Append word to file only if it doesn't already exists
+                if word not in existing_words_romanized:
+                    word = romanize_word(word)
+                    romanized_output.write(f'{word.strip()}\n')
+                    final_words_romanized.append(word.strip())
+
+    txt_output.close()
+
+    if is_romanized:
+        romanized_output.close()
+
+    # Create json files
+    if is_json:
+        export(letter, final_words, 'json')
+
+        if is_romanized:
+            export(f'{letter}_romanized', final_words_romanized, 'json')
+
+
 def fetch(
-        use_files: bool,
-        is_romanized: bool,
-        is_json: bool,
-        letters: list
+    letters: list,
+    use_files: bool = False,
+    is_romanized: bool = False,
+    is_json: bool = False,
 ) -> None:
     if not use_files:
         log("Creating dictionary...", "info")
         pool = Pool()
         processes = []
         for idx, letter in enumerate(letters):
-            pages = f'{letter["pages"]}'
-            process = pool.apply_async(
-                scrape, [letter["letter"], pages, is_romanized, is_json, idx]
-            )
-            processes.append(process)
+            try:
+                pages = f'{letter["pages"]}'
+                process = pool.apply_async(
+                    scrape,
+                    [
+                        letter["letter"],
+                        pages,
+                        is_romanized,
+                        is_json,
+                        idx
+                    ]
+                )
+                processes.append(process)
+            except TypeError as e:
+                log(e, 'warning')
 
         for process in processes:
             process.get()
 
 
 def compile_dictionary(
-        is_romanized: bool,
-        is_json: bool,
-        is_diceware: bool,
-        letters: list
+    letters: list,
+    is_romanized: bool = False,
+    is_json: bool = False,
+    is_diceware: bool = False,
 ) -> None:
     log("Compiling dictionary...", "info")
     final_words = []
     final_words_romanized = []
-    compiled_index = open('output/index.txt', 'w')
-    if is_romanized:
-        compiled_index_romanized = open(f'output/index_romanized.txt', 'a')
     
     for letter in tqdm(range(0, len(letters)), unit=" letters"):
         words = get_words(f'output/{letters[letter]["letter"]}.txt')
         for word in words:
-            compiled_index.write(f'{word.strip()}\n')
             final_words.append(f'{word.strip()}')
 
             if is_romanized:
                 word = romanize_word(word)
-                compiled_index_romanized.write(f'{word.strip()}\n')
                 final_words_romanized.append(f'{word.strip()}')
 
-    compiled_index.close()
+    export('index', final_words)
+
     if is_romanized:
-        compiled_index_romanized.close()
+        export('index', final_words_romanized)
 
     # Compile json files
     if is_json:
         log(f'Compiling json files...', 'info')
-        with open(f'output/index.json', 'w', encoding='utf-8') as json_file:
-            json.dump(final_words, json_file, ensure_ascii=False)
-            json_file.close()
-        
+        export('index', final_words, 'json')
+
         if is_romanized:
-            with open(f'output/index_romanized.json', 'w', encoding='utf-8') as json_file:
-                json.dump(final_words_romanized, json_file, ensure_ascii=False)
-                json_file.close()
+            export('index_romanized', final_words_romanized, 'json')
 
     if is_diceware:
         log(f'Compiling diceware...', 'info')
         results, results_numbered = diceware(final_words)
+
+        export('diceware', results)
+        export('diceware_numbered', results_numbered)
 
         if is_romanized:
             romanized, romanized_numbered = diceware(final_words_romanized)
@@ -501,9 +484,6 @@ def compile_dictionary(
             if is_json:
                 export('diceware_romanized', romanized, 'json')
                 export('diceware_romanized_numbered', romanized_numbered, 'json')
-
-        export('diceware', results)
-        export('diceware_numbered', results_numbered)
 
         if is_json:
             export('diceware', results, 'json')

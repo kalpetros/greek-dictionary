@@ -1,5 +1,4 @@
 import click
-import os
 import sys
 
 from utils import alphabet
@@ -71,8 +70,8 @@ def main(has_letters, use_files, is_clean, is_romanized, is_json, is_diceware) -
 
     clean_output_dir(is_clean)
     create_output_dir()
-    fetch(use_files, is_romanized, is_json, letters)
-    compile_dictionary(is_romanized, is_json, is_diceware, letters)
+    fetch(letters, use_files, is_romanized, is_json)
+    compile_dictionary(letters, is_romanized, is_json, is_diceware)
     sys.exit(2)
 
 
