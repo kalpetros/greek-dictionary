@@ -458,7 +458,7 @@ def compile_dictionary(
     export('index', final_words)
 
     if is_romanized:
-        export('index', final_words_romanized)
+        export('index_romanized', final_words_romanized)
 
     # Compile json files
     if is_json:
